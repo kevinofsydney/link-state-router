@@ -30,7 +30,7 @@ public class Router {
 	 * format: source ip address -> ip address -> ... -> destination ip
 	 *
 	 * @param destinationIP
-	 *            the ip adderss of the destination simulated router
+	 *            the ip address of the destination simulated router
 	 */
 	private void processDetect(String destinationIP) {
 		System.out.println(lsd.getShortestPath(destinationIP));
@@ -57,23 +57,23 @@ public class Router {
 	 */
 	private void processAttach(String processIP, short processPort, String simulatedIP, short weight) {
 
-		// cannot attach to self
+		// Cannot attach to itself
 		if(rd.simulatedIPAddress.equals(simulatedIP)) {
 			System.out.println("Error: Cannot establish link to myself");
 			return;
 		}
 		
-		// check to make sure it isnt already attached
-		for ( int j = 0 ; j < ports.length; j++) {
-			if ( ports[j].router2.simulatedIPAddress == simulatedIP) {
+		// Check to make sure it isn't already attached to the given IP
+		for (int j = 0 ; j < ports.length; j++) {
+			if ( ports[j].router2.simulatedIPAddress.equals(simulatedIP)) {
 				System.out.println("Error: Cannot establish link that is already existing");
 				return;
 			}
 		}
-		
-		
-		for ( int i = 0 ; i < ports.length; i++) {
-			if( ports[i] == null ) {
+
+		//Attempt to find a free port
+        for (int i = 0 ; i < ports.length; i++) {
+			if(ports[i] == null ) {
 				// create the new router description
 				RouterDescription remoteRouterDescription = new RouterDescription();
 				remoteRouterDescription.processIPAddress = processIP;
@@ -81,6 +81,7 @@ public class Router {
 				remoteRouterDescription.processPortNumber = processPort;
 				
 				ports[i] = new Link(rd, remoteRouterDescription);
+				break;
 			} else {
 				System.out.println("Error: Cannot establish link to remote router, ports are full");
 			}
@@ -92,15 +93,17 @@ public class Router {
 	 */
 	private void processStart() {
 
-		Socket clientSocket;
+        Socket clientSocket;
 		
-		for( int i = 0 ; i < ports.length; i++) {
-            if ( ports[i] != null) {
+		for(int i = 0 ; i < ports.length; i++) {
+            if (ports[i] != null) {
                 if (ports[i].router2.status == null) {
                 	
                     String serverIPAddress = ports[i].router2.processIPAddress;
                     short port = ports[i].router2.processPortNumber;
-                    
+
+                    // I don't think we need this packet thing, we just need
+                    // input and output streams
                     SOSPFPacket packet = new SOSPFPacket();
                     packet.sospfType = 0;
                     packet.neighborID = rd.simulatedIPAddress;
