@@ -13,7 +13,7 @@ import java.net.Socket;
 public class Router {
 
 	protected LinkStateDatabase lsd;
-
+    private Server server;
 	RouterDescription rd = new RouterDescription();
 
 	//assuming that all routers are with 4 ports
@@ -21,7 +21,11 @@ public class Router {
 
 	public Router(Configuration config) {
 		rd.simulatedIPAddress = config.getString("socs.network.router.ip");
+		rd.processPortNumber = config.getShort("socs.network.router.port");
 		lsd = new LinkStateDatabase(rd);
+        Server server = new Server(this, rd.processPortNumber);
+
+		System.out.println("Router with IP address " + rd.simulatedIPAddress + " started.");
 	}
 
 	/**
