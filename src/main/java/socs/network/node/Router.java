@@ -57,7 +57,7 @@ public class Router {
 	/**
 	 * attach the link to the remote router, which is identified by the given
 	 * simulated ip; to establish the connection via socket, you need to
-	 * indentify the process IP and process Port; additionally, weight is the
+	 * identify the process IP and process Port; additionally, weight is the
 	 * cost to transmitting data through the link
 	 * <p/>
 	 * NOTE: this command should not trigger link database synchronization
