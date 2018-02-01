@@ -23,11 +23,12 @@ public class Router {
 
 	public Router(Configuration config) {
 		rd.simulatedIPAddress = config.getString("socs.network.router.ip");
-		rd.processPortNumber = config.getShort("socs.network.router.port");
+		rd.processPortNumber = Short.parseShort(config.getString("socs.network.router.port"));
 		lsd = new LinkStateDatabase(rd);
         Server server = new Server(this, rd.processPortNumber);
 
-		System.out.println("Router with IP address " + rd.simulatedIPAddress + " started.");
+		System.out.println("Router with IP address " + rd.simulatedIPAddress +
+                " and port " + rd.processPortNumber + " started.");
 	}
 
 	/**
@@ -86,8 +87,7 @@ public class Router {
             remoteRouter.processPortNumber = processPort;
             remoteRouter.status = RouterStatus.TWO_WAY;
 
-            Link link = new Link(rd, remoteRouter);
-            ports.add(link);
+            ports.add(new Link(rd, remoteRouter));
         }
         else
             System.out.println("Error: Attach failed: all ports are full.");
@@ -100,7 +100,7 @@ public class Router {
 	private void processStart() {
 
         Socket clientSocket;
-		
+		/*
 		for(int i = 0 ; i < ports.length; i++) {
             if (ports[i] != null) {
                 if (ports[i].router2.status == null) {
@@ -119,7 +119,7 @@ public class Router {
                 }
             }
 		}
-		
+		*/
 	}
 
 	/**
