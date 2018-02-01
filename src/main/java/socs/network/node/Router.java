@@ -9,15 +9,17 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.LinkedList;
+import java.util.List;
 
 public class Router {
 
 	protected LinkStateDatabase lsd;
     private Server server;
-	RouterDescription rd = new RouterDescription();
+	private RouterDescription rd = new RouterDescription();
 
 	//assuming that all routers are with 4 ports
-	Link[] ports = new Link[4];
+	public List<Link> ports = new LinkedList<Link>();
 
 	public Router(Configuration config) {
 		rd.simulatedIPAddress = config.getString("socs.network.router.ip");
@@ -60,36 +62,36 @@ public class Router {
 	 * NOTE: this command should not trigger link database synchronization
 	 */
 	private void processAttach(String processIP, short processPort, String simulatedIP, short weight) {
+        //Note: The 'name' of the router is it's simulatedIP
+	    for (Link currLink : ports)
+        {
+            // Attempting to attach to a router it is already attached to
+            if (currLink.router2.processIPAddress.equals(processIP) &&
+                    currLink.router2.processPortNumber == processPort)
+            {
+                System.out.println("Error: Attach failed: link already exists between this router and " + processIP + ".");
+            }
+            //Attempting to attach to itself
+            else if (currLink.router2.simulatedIPAddress.equals(simulatedIP))
+            {
+                System.out.println("Error: Attach failed: router cannot attach to itself.");
+            }
+        }
 
-		// Cannot attach to itself
-		if(rd.simulatedIPAddress.equals(simulatedIP)) {
-			System.out.println("Error: Cannot establish link to myself");
-			return;
-		}
-		
-		// Check to make sure it isn't already attached to the given IP
-		for (int j = 0 ; j < ports.length; j++) {
-			if ( ports[j].router2.simulatedIPAddress.equals(simulatedIP)) {
-				System.out.println("Error: Cannot establish link that is already existing");
-				return;
-			}
-		}
+        if (ports.size() < 4)
+        {
+            RouterDescription remoteRouter = new RouterDescription();
+            remoteRouter.processIPAddress = processIP;
+            remoteRouter.simulatedIPAddress = simulatedIP;
+            remoteRouter.processPortNumber = processPort;
+            remoteRouter.status = RouterStatus.TWO_WAY;
 
-		//Attempt to find a free port
-        for (int i = 0 ; i < ports.length; i++) {
-			if(ports[i] == null ) {
-				// create the new router description
-				RouterDescription remoteRouterDescription = new RouterDescription();
-				remoteRouterDescription.processIPAddress = processIP;
-				remoteRouterDescription.simulatedIPAddress = simulatedIP;
-				remoteRouterDescription.processPortNumber = processPort;
-				
-				ports[i] = new Link(rd, remoteRouterDescription);
-				break;
-			} else {
-				System.out.println("Error: Cannot establish link to remote router, ports are full");
-			}
-		}
+            Link link = new Link(rd, remoteRouter);
+            ports.add(link);
+        }
+        else
+            System.out.println("Error: Attach failed: all ports are full.");
+
 	}
 
 	/**
@@ -106,8 +108,7 @@ public class Router {
                     String serverIPAddress = ports[i].router2.processIPAddress;
                     short port = ports[i].router2.processPortNumber;
 
-                    // I don't think we need this packet thing, we just need
-                    // input and output streams
+
                     SOSPFPacket packet = new SOSPFPacket();
                     packet.sospfType = 0;
                     packet.neighborID = rd.simulatedIPAddress;
