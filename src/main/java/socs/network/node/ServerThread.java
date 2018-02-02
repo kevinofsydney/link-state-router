@@ -106,7 +106,7 @@ public class ServerThread extends Thread {
 			// END Server HELLO Response 
 			//-----------------------------------------------------------------------------------------------------------------------------------------
 			} else {
-				System.out.println("Wrong message");
+				//System.out.println("Wrong message");
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
