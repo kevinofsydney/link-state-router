@@ -42,17 +42,17 @@ public class ClientThread extends Thread {
 			
 			// check response is of sospfType HELLO
 			if (response.sospfType == 0) {
-				System.out.println("received HELLO from " + response.neighborID);
+				System.out.println("\nreceived HELLO from " + response.neighborID);
 				
 				// set server status to TWO_WAY
 				for ( Link currLink : myRouter.ports) {
 					// sender is already a neighbour (dont want to addNeighbour)
 					if (currLink.router2.simulatedIPAddress.equals(response.neighborID)) {
 						currLink.router2.status = RouterStatus.TWO_WAY;
-						System.out.println("set " + message.neighborID + " state to TWO_WAY;");
+						System.out.println("set " + response.neighborID + " state to TWO_WAY;");
 					// Error: sender not a neighbour
 					} else {
-						System.out.println("Error: Setting sender status to TWO_WAY, sender not a Neighbour");
+						//System.out.println("Error: Setting sender status to TWO_WAY, sender not a Neighbour");
 					}
 				}
 			}

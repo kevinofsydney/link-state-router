@@ -31,7 +31,7 @@ public class ServerThread extends Thread {
 			// check if message is HELLO message
 			if (message.sospfType == 0) {
 				
-				System.out.println("received HELLO from " + message.neighborID + ";");
+				System.out.println("\nreceived HELLO from " + message.neighborID + ";");
 				
 				// message.neighborID identifies sender of packet
 				
@@ -98,7 +98,7 @@ public class ServerThread extends Thread {
 							System.out.println("set " + message.neighborID + " state to TWO_WAY;");
 						// Error: sender not a neighbour
 						} else {
-							System.out.println("Error: Setting sender status to TWO_WAY, sender not a Neighbour");
+							//System.out.println("Error: Setting sender status to TWO_WAY, sender not a Neighbour");
 						}
 					}
 				}
