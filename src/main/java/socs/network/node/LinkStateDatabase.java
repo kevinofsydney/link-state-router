@@ -3,12 +3,11 @@ package socs.network.node;
 import socs.network.message.LSA;
 import socs.network.message.LinkDescription;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
-import java.util.Map.Entry;
+
 
 public class LinkStateDatabase {
 
@@ -34,8 +33,7 @@ public class LinkStateDatabase {
 		HashSet<String> closedSet = new HashSet<String>(); //nodes already evaluated
 		HashMap<String, LinkedList<String>> shortestPath = new HashMap<String, LinkedList<String>>(); //structure keeps track of shortestPath for each node
 		HashMap<String, Integer> distance = new HashMap<String, Integer>(); //structure keeps track of distance to each node
-		HashMap<String, String> edges = new HashMap<String, String>();
-
+		
 		distance.put(rd.simulatedIPAddress, 0); // set source node distance to 0
 
 		// add all ip addresses to openSet
@@ -107,109 +105,5 @@ public class LinkStateDatabase {
 			sb.append("\n");
 		}
 		return sb.toString();
-	}
-}
-
-//weighted graph implementation
-class Graph {
-
-	private ArrayList<Node> nodes = new ArrayList<Node>();
-
-	public void addNode(Node pNode) {
-		nodes.add(pNode);
-	}
-
-	public void calculateShortestPathFromSource(Node source) {
-		source.setDistance(0);
-
-		HashSet<Node> closedSet = new HashSet<Node>();
-		HashSet<Node> openSet = new HashSet<Node>();
-
-		openSet.add(source);
-
-		while (openSet.size() != 0) {
-			// get first element in openSet
-			Iterator<Node> iterator = openSet.iterator();
-			Node currentNode = iterator.next();
-			openSet.remove(currentNode);
-			// evaluate all neighbours of currentNode
-			for (Entry<Node, Integer> neighbours : currentNode.getNeighbours().entrySet()) {
-				Node neighbour = neighbours.getKey();
-				Integer weight = neighbours.getValue();
-				if (!closedSet.contains(neighbour)) {
-					calculateDistance(neighbour, weight, currentNode);
-					openSet.add(neighbour);
-				}
-			}
-			closedSet.add(currentNode);
-		}
-	}
-
-	// evaluates or reevaluates distance to neighbours
-	private void calculateDistance(Node target, Integer weight, Node source) {
-		Integer sourceDistance = source.getDistance();
-		if (sourceDistance + weight < target.getDistance()) {
-			target.setDistance(sourceDistance + weight);
-			LinkedList<Node> shortestPath = new LinkedList<Node>(source.getShortestPath());
-			shortestPath.add(source);
-			target.setShortestPath(shortestPath);
-		}
-	}
-}
-
-//Vertex of weighted graph
-class Node {
-	private String id;
-	private LinkedList<Node> shortestPath = new LinkedList<Node>(); // shortest path from source node
-	private Integer distance = Integer.MAX_VALUE; // distance from source node (infinity on init)
-	private HashMap<Node, Integer> neighbours = new HashMap<Node, Integer>(); // map of neighbouring vertices with corresponding weights
-
-	// constructor
-	public Node(String id) {
-		this.id = id;
-	}
-
-	// set neighbours
-	public void addNeighbour(Node destination, int weight) {
-		neighbours.put(destination, weight);
-	}
-
-	// getters and setters
-	public String getId() {
-		return id;
-	}
-
-	public LinkedList<Node> getShortestPath() {
-		return shortestPath;
-	}
-
-	public void setShortestPath(LinkedList<Node> shortestPath) {
-		this.shortestPath = shortestPath;
-	}
-
-	public Integer getDistance() {
-		return distance;
-	}
-
-	public void setDistance(Integer distance) {
-		this.distance = distance;
-	}
-
-	public HashMap<Node, Integer> getNeighbours() {
-		return neighbours;
-	}
-
-	public String getShortestPathString() {
-		String path = "";
-		Iterator<Node> it = shortestPath.iterator();
-		while (it.hasNext()) {
-			path += it.next().id;
-			if (it.hasNext()) {
-				path += " -> ";
-			}
-		}
-		path += " -> " + this.id + " [distance = " + this.distance + "]";
-		return path;
-
 	}
 }

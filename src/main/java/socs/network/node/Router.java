@@ -1,34 +1,42 @@
 package socs.network.node;
 
-import socs.network.message.SOSPFPacket;
 import socs.network.util.Configuration;
 
 import java.io.BufferedReader;
-import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.net.ServerSocket;
+import java.net.InetAddress;
 import java.net.Socket;
+import java.net.UnknownHostException;
 import java.util.LinkedList;
 import java.util.List;
 
 public class Router {
 
 	protected LinkStateDatabase lsd;
-    private Server server;
-	private RouterDescription rd = new RouterDescription();
-
-	//assuming that all routers are with 4 ports
+	RouterDescription rd = new RouterDescription();
 	public List<Link> ports = new LinkedList<Link>();
 
 	public Router(Configuration config) {
+		
+		// get info from conf file
 		rd.simulatedIPAddress = config.getString("socs.network.router.ip");
 		rd.processPortNumber = Short.parseShort(config.getString("socs.network.router.port"));
+		
+		// get local host address
+		InetAddress inetAddress = null;
+		try {
+			inetAddress = InetAddress.getLocalHost();
+		} catch (UnknownHostException e) {
+			e.printStackTrace();
+		}
+		rd.processIPAddress = inetAddress.getHostAddress();
+		
+		System.out.println("Started router " + rd.processIPAddress + ":" + rd.processPortNumber + " with simulatedIP (" + rd.simulatedIPAddress + ")");
+		
+		Server server = new Server(this, rd.processPortNumber);
+		server.start();
+		
 		lsd = new LinkStateDatabase(rd);
-        Server server = new Server(this, rd.processPortNumber);
-
-		System.out.println("Router with IP address " + rd.simulatedIPAddress +
-                " and port " + rd.processPortNumber + " started.");
 	}
 
 	/**
@@ -37,7 +45,7 @@ public class Router {
 	 * format: source ip address -> ip address -> ... -> destination ip
 	 *
 	 * @param destinationIP
-	 *            the ip address of the destination simulated router
+	 *            the ip adderss of the destination simulated router
 	 */
 	private void processDetect(String destinationIP) {
 		System.out.println(lsd.getShortestPath(destinationIP));
@@ -51,46 +59,47 @@ public class Router {
 	 *            the port number which the link attaches at
 	 */
 	private void processDisconnect(short portNumber) {
-		
+
 	}
 
 	/**
 	 * attach the link to the remote router, which is identified by the given
 	 * simulated ip; to establish the connection via socket, you need to
-	 * identify the process IP and process Port; additionally, weight is the
+	 * indentify the process IP and process Port; additionally, weight is the
 	 * cost to transmitting data through the link
 	 * <p/>
 	 * NOTE: this command should not trigger link database synchronization
 	 */
 	private void processAttach(String processIP, short processPort, String simulatedIP, short weight) {
-        //Note: The 'name' of the router is it's simulatedIP
-	    for (Link currLink : ports)
-        {
-            // Attempting to attach to a router it is already attached to
-            if (currLink.router2.processIPAddress.equals(processIP) &&
-                    currLink.router2.processPortNumber == processPort)
-            {
-                System.out.println("Error: Attach failed: link already exists between this router and " + processIP + ".");
-            }
-            //Attempting to attach to itself
-            else if (currLink.router2.simulatedIPAddress.equals(simulatedIP))
-            {
-                System.out.println("Error: Attach failed: router cannot attach to itself.");
-            }
-        }
 
-        if (ports.size() < 4)
-        {
-            RouterDescription remoteRouter = new RouterDescription();
-            remoteRouter.processIPAddress = processIP;
-            remoteRouter.simulatedIPAddress = simulatedIP;
-            remoteRouter.processPortNumber = processPort;
-            remoteRouter.status = RouterStatus.TWO_WAY;
+		// cannot attach to self
+		if (rd.simulatedIPAddress.equals(simulatedIP)) {
+			System.out.println("Error: Cannot establish link to myself");
+			return;
+		}
+		
+		// check to see if router is already attached
+		for (Link currLink : ports) {
+			// Attempting to attach to a router it is already attached to
+			if (currLink.router2.simulatedIPAddress.equals(simulatedIP) ) {
+				System.out.println("Error: Attach failed: link already exists between this router and " + processIP + ".");
+			}
+		}
 
-            ports.add(new Link(rd, remoteRouter));
-        }
-        else
-            System.out.println("Error: Attach failed: all ports are full.");
+		// check to see if there is space in ports list
+		if (ports.size() < 4) {
+			RouterDescription remoteRouter = new RouterDescription();
+			remoteRouter.processIPAddress = processIP;
+			remoteRouter.simulatedIPAddress = simulatedIP;
+			remoteRouter.processPortNumber = processPort;
+
+			ports.add(new Link(rd, remoteRouter));
+			System.out.println("Attached (" + rd.simulatedIPAddress + ") to (" + simulatedIP +")");
+		}
+		// ports list is full
+		else {
+			System.out.println("Error: Attach failed: all ports are full.");
+		}
 
 	}
 
@@ -99,27 +108,23 @@ public class Router {
 	 */
 	private void processStart() {
 
-        Socket clientSocket;
-		/*
-		for(int i = 0 ; i < ports.length; i++) {
-            if (ports[i] != null) {
-                if (ports[i].router2.status == null) {
-                	
-                    String serverIPAddress = ports[i].router2.processIPAddress;
-                    short port = ports[i].router2.processPortNumber;
+		Socket clientSocket = null;
 
+		// send HELLO message to all attached routers
+		for (Link current : ports) {
+			String hostName = current.router2.processIPAddress;
+			short port = current.router2.processPortNumber;
 
-                    SOSPFPacket packet = new SOSPFPacket();
-                    packet.sospfType = 0;
-                    packet.neighborID = rd.simulatedIPAddress;
-                    packet.srcProcessIP = rd.processIPAddress;
-                    packet.srcProcessPort = rd.processPortNumber;
-                    
-                    	// act as a client send HELLO via SOSPFPacket
-                }
-            }
+			try {
+				clientSocket = new Socket(hostName, port);
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+
+			// start client thread
+			ClientThread myClientThread = new ClientThread(clientSocket, this);
+			myClientThread.start();
 		}
-		*/
 	}
 
 	/**
@@ -139,13 +144,20 @@ public class Router {
 	 */
 	private void processNeighbors() {
 
+		// iterate through all ports and print all IPAddress of routers whose RouterStatus is TWO_WAY
+		for (Link currLink : ports) {
+			if (currLink.router2.status == RouterStatus.TWO_WAY) {
+				System.out.println(currLink.router2.simulatedIPAddress);
+			}
+		}
+
 	}
 
 	/**
 	 * disconnect with all neighbors and quit the program
 	 */
 	private void processQuit() {
-
+        System.exit(0);
 	}
 
 	public void terminal() {
