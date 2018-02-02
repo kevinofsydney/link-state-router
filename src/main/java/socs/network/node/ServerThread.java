@@ -70,7 +70,6 @@ public class ServerThread extends Thread {
 					
 					
 				}
-
 				// Prepare response ---------------------------------------------------------------------
 				
 				// create new SOSPF packet with HELLO message

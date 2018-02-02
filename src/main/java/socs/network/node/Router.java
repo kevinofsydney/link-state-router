@@ -14,8 +14,6 @@ public class Router {
 
 	protected LinkStateDatabase lsd;
 	RouterDescription rd = new RouterDescription();
-
-	//assuming that all routers are with 4 ports
 	public List<Link> ports = new LinkedList<Link>();
 
 	public Router(Configuration config) {
