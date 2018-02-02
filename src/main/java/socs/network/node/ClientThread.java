@@ -50,9 +50,6 @@ public class ClientThread extends Thread {
 					if (currLink.router2.simulatedIPAddress.equals(response.neighborID)) {
 						currLink.router2.status = RouterStatus.TWO_WAY;
 						System.out.println("set " + response.neighborID + " state to TWO_WAY;");
-					// Error: sender not a neighbour
-					} else {
-						//System.out.println("Error: Setting sender status to TWO_WAY, sender not a Neighbour");
 					}
 				}
 			}
