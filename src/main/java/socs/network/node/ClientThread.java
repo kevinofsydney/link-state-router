@@ -23,7 +23,7 @@ public class ClientThread extends Thread {
 
 		try {
 	
-			outputStream = new ObjectOutputStream(mySocket.getOutputStream()); //Throws Exceptions
+			outputStream = new ObjectOutputStream(mySocket.getOutputStream());
 			
 			// create new SOSPF packet with HELLO message
 			SOSPFPacket message = new SOSPFPacket();
@@ -37,7 +37,7 @@ public class ClientThread extends Thread {
 			outputStream.writeObject(message); //Throws Exceptions
 
 			// get response
-			inputStream = new ObjectInputStream(mySocket.getInputStream()); //Throws Exceptions
+			inputStream = new ObjectInputStream(mySocket.getInputStream()); 
 			SOSPFPacket response = (SOSPFPacket) inputStream.readObject();
 			
 			// check response is of sospfType HELLO
@@ -58,7 +58,7 @@ public class ClientThread extends Thread {
 			}
 			
 			// send HELLO again
-			outputStream.writeObject(message); //Throws Exceptions		
+			outputStream.writeObject(message);	
 			
 		} catch (Exception e) {
 			e.printStackTrace();

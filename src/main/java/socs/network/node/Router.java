@@ -1,16 +1,10 @@
 package socs.network.node;
 
-import socs.network.message.SOSPFPacket;
 import socs.network.util.Configuration;
 
 import java.io.BufferedReader;
-import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.io.OutputStream;
 import java.net.InetAddress;
-import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.LinkedList;
@@ -25,6 +19,8 @@ public class Router {
 	public List<Link> ports = new LinkedList<Link>();
 
 	public Router(Configuration config) {
+		
+		// get info from conf file
 		rd.simulatedIPAddress = config.getString("socs.network.router.ip");
 		rd.processPortNumber = Short.parseShort(config.getString("socs.network.router.port"));
 		
@@ -83,8 +79,8 @@ public class Router {
 			System.out.println("Error: Cannot establish link to myself");
 			return;
 		}
-
-		//Note: The 'name' of the router is it's simulatedIP
+		
+		// check to see if router is already attached
 		for (Link currLink : ports) {
 			// Attempting to attach to a router it is already attached to
 			if (currLink.router2.simulatedIPAddress.equals(simulatedIP) ) {
@@ -127,6 +123,7 @@ public class Router {
 				e.printStackTrace();
 			}
 
+			// start client thread
 			ClientThread myClientThread = new ClientThread(clientSocket, this);
 			myClientThread.start();
 		}
@@ -151,7 +148,6 @@ public class Router {
 
 		// iterate through all ports and print all IPAddress of routers whose RouterStatus is TWO_WAY
 		for (Link currLink : ports) {
-			// check if this router has RouterStatus TWO_WAY too
 			if (currLink.router2.status == RouterStatus.TWO_WAY) {
 				System.out.println(currLink.router2.simulatedIPAddress);
 			}
@@ -163,7 +159,7 @@ public class Router {
 	 * disconnect with all neighbors and quit the program
 	 */
 	private void processQuit() {
-
+        System.exit(0);
 	}
 
 	public void terminal() {

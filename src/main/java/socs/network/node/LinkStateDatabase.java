@@ -3,12 +3,11 @@ package socs.network.node;
 import socs.network.message.LSA;
 import socs.network.message.LinkDescription;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
-import java.util.Map.Entry;
+
 
 public class LinkStateDatabase {
 
@@ -34,8 +33,7 @@ public class LinkStateDatabase {
 		HashSet<String> closedSet = new HashSet<String>(); //nodes already evaluated
 		HashMap<String, LinkedList<String>> shortestPath = new HashMap<String, LinkedList<String>>(); //structure keeps track of shortestPath for each node
 		HashMap<String, Integer> distance = new HashMap<String, Integer>(); //structure keeps track of distance to each node
-		HashMap<String, String> edges = new HashMap<String, String>();
-
+		
 		distance.put(rd.simulatedIPAddress, 0); // set source node distance to 0
 
 		// add all ip addresses to openSet

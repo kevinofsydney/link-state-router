@@ -23,9 +23,9 @@ public class ServerThread extends Thread {
 
 		try {
 			
-			inputStream = new ObjectInputStream(mySocket.getInputStream()); //Throws Exceptions
-			
-			SOSPFPacket message = (SOSPFPacket) inputStream.readObject(); //Throws Exceptions
+			// get packet from InputStream
+			inputStream = new ObjectInputStream(mySocket.getInputStream()); 
+			SOSPFPacket message = (SOSPFPacket) inputStream.readObject();
 			
 			// -----------------------------------------------------------------------------------------------------------------------------------------
 			// check if message is HELLO message
@@ -81,11 +81,11 @@ public class ServerThread extends Thread {
 				response.srcProcessPort = myRouter.rd.processPortNumber;
 
 				// send response to client
-				outputStream = new ObjectOutputStream(mySocket.getOutputStream()); //Throws Exceptions
-				outputStream.writeObject(response); //Throws Exceptions
+				outputStream = new ObjectOutputStream(mySocket.getOutputStream());
+				outputStream.writeObject(response); 
 
 				// get response from client
-				response = (SOSPFPacket) inputStream.readObject(); //Throws Exceptions
+				response = (SOSPFPacket) inputStream.readObject();
 
 				// confirm it is a HELLO response
 				if (response.sospfType == 0) {

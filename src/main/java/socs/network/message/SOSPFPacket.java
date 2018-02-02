@@ -4,6 +4,7 @@ import java.io.*;
 import java.util.Vector;
 import java.util.concurrent.atomic.AtomicInteger;
 
+@SuppressWarnings({ "serial", "unused" })
 public class SOSPFPacket implements Serializable {
 
   //for inter-process communication
