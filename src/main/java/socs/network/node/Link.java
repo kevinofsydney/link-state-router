@@ -9,4 +9,6 @@ public class Link {
     router1 = r1;
     router2 = r2;
   }
+
+  
 }

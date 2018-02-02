@@ -4,7 +4,7 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 
-public class Server implements Runnable {
+public class Server extends Thread {
 
 	private Router myRouter;
 	private short myPort;
@@ -35,8 +35,8 @@ public class Server implements Runnable {
 				Socket clientSocket = serverSocket.accept();	
 
 				// when an incoming request comes through, create a client thread to handle the request
-				ClientThread client = new ClientThread(clientSocket, myRouter);
-				client.start();
+				ServerThread clientServiceThread = new ServerThread(clientSocket, myRouter);
+				clientServiceThread.start();
 
 			} catch (IOException ioe) {
 				System.out.println("Exception encountered on accept. Stack Trace :");
