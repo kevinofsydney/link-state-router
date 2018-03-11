@@ -13,4 +13,12 @@ public class LinkDescription implements Serializable {
 	public String toString() {
 		return linkID + "," + portNum + "," + tosMetrics;
 	}
+
+	public LinkDescription() {}
+
+	public LinkDescription(String linkID, int portNum, int tosMetrics) {
+		this.linkID = linkID;
+		this.portNum = portNum;
+		this.tosMetrics = tosMetrics; //the weight of the link
+	}
 }

@@ -1,5 +1,7 @@
 package socs.network.node;
 
+import socs.network.message.LSA;
+import socs.network.message.SOSPFPacket;
 import socs.network.util.Configuration;
 
 import java.io.BufferedReader;
@@ -15,9 +17,10 @@ public class Router {
 	protected LinkStateDatabase lsd;
 	RouterDescription rd = new RouterDescription();
 	public List<Link> ports = new LinkedList<Link>();
+	private int lsaSeqNum_counter = 0;
 
 	public Router(Configuration config) {
-		
+
 		// get info from conf file
 		rd.simulatedIPAddress = config.getString("socs.network.router.ip");
 		rd.processPortNumber = Short.parseShort(config.getString("socs.network.router.port"));
@@ -126,6 +129,36 @@ public class Router {
 			myClientThread.start();
 		}
 	}
+
+	// Called when attach and start commands are run
+	private void sendLSAInit () {
+        // Create the LSA
+	    LSA initLSA = new LSA();
+        initLSA.lsaSeqNumber = lsaSeqNum_counter++;
+        initLSA.linkStateID = rd.simulatedIPAddress;
+
+        // Add all of the router's links to the LSA
+        for (Link link : ports) {
+            initLSA.addLink(link.router2.simulatedIPAddress, link.router2.processPortNumber, link.weight);
+        }
+
+        // Add the LSA to the LSD
+        lsd.addLSA(initLSA);
+
+        // For each active TWO_WAY connection, create a link state packet (LSP) and send it
+
+        for (Link link : ports) {
+            if (link.router2.status == RouterStatus.TWO_WAY) {
+                SOSPFPacket LSP = new SOSPFPacket();
+            }
+
+        }
+    }
+
+    // Called when an LSA packet needs to be forwarded
+    /*private void sendLSAUpdate {
+
+    }*/
 
 	/**
 	 * attach the link to the remote router, which is identified by the given

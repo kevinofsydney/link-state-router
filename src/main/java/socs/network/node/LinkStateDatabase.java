@@ -106,4 +106,19 @@ public class LinkStateDatabase {
 		}
 		return sb.toString();
 	}
+
+	public boolean addLSA(LSA newLSA) {
+
+	    // Check if the LSD already contains a link with the same ID
+	    if (_store.containsKey(newLSA.linkStateID)) {
+
+	        // Check if the newLSA is more recent than the one stored
+	        if (_store.get(newLSA.linkStateID).lsaSeqNumber >= newLSA.lsaSeqNumber)
+	            return false;
+        }
+
+        // Store the LSA
+        _store.put(newLSA.linkStateID, newLSA);
+	    return true;
+    }
 }
