@@ -93,7 +93,7 @@ public class Router {
 			remoteRouter.simulatedIPAddress = simulatedIP;
 			remoteRouter.processPortNumber = processPort;
 
-			ports.add(new Link(rd, remoteRouter));
+			ports.add(new Link(rd, remoteRouter, weight));
 			System.out.println("Attached (" + rd.simulatedIPAddress + ") to (" + simulatedIP +")");
 		}
 		// ports list is full
