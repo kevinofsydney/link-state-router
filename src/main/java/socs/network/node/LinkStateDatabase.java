@@ -34,16 +34,22 @@ public class LinkStateDatabase {
 		HashMap<String, LinkedList<String>> shortestPath = new HashMap<String, LinkedList<String>>(); //structure keeps track of shortestPath for each node
 		HashMap<String, Integer> distance = new HashMap<String, Integer>(); //structure keeps track of distance to each node
 		
-		distance.put(rd.simulatedIPAddress, 0); // set source node distance to 0
-
-		// add all ip addresses to openSet
+		WeightedGraph g = new WeightedGraph();
+		// index integers
+		int i = 0;
+		int j = 0;
+	
+		// add all ip addresses to openSet and weighted graph
 		for (String linkID : _store.keySet()) {
+			g.myID[i++] = linkID;
 			openSet.add(linkID);
 			// set all distances to infinity as per Dijkstras algorithm
 			distance.put(linkID, Integer.MAX_VALUE); 
 			
 		}
 
+		i = 0; //reset
+		
 		// dijkstras algorithm
 		while (openSet.size() != 0) {
 			Iterator<String> iterator = openSet.iterator();
@@ -53,6 +59,7 @@ public class LinkStateDatabase {
 			for (LinkDescription neighbour : _store.get(currentNode).links) {
 				int weight = neighbour.tosMetrics;
 				String target = neighbour.linkID;
+				g.edges[i][j] = weight;
 				if (!closedSet.contains(target)) {
 					Integer distanceFromSource = distance.get(currentNode);
 					Integer distanceToNeighbour = distance.get(target);
@@ -64,21 +71,38 @@ public class LinkStateDatabase {
 					}
 					openSet.add(target);
 				}
+				j++;
 			}
+			i++;
 			closedSet.add(currentNode);
 		}
 
 		// Build and return the string with the shortest path
 		LinkedList<String> pathToReturn = new LinkedList<String>(shortestPath.get(destinationIP));
 
-		Iterator<String> it = pathToReturn.iterator();
-		while (it.hasNext()) {
-			toReturn += it.next();
-		    if (it.hasNext()) {
-		    		toReturn += " -> ";
-		    }
+		for (int k = 0; k < pathToReturn.size() + 1; k++) {
+			// first string has no weight
+			if ( k == 0) {
+				toReturn += pathToReturn.get(k);
+				// add arrow and weight to string
+			} else {
+				String nextNode = pathToReturn.get(k);
+				// if done traversing back traces
+				if ( k == pathToReturn.size() ) {
+					nextNode = destinationIP;
+				}
+				
+				// determine edge weight
+				int edgeWeight;
+				if ( k == 1) {
+					edgeWeight = distance.get(nextNode);
+				} else {
+					edgeWeight = distance.get(nextNode) - distance.get(pathToReturn.get(k-1));
+				}
+			
+				toReturn += "->(" + edgeWeight + ") " + nextNode;
+			} 
 		}
-		toReturn += " -> "  + destinationIP + " [distance = " + distance.get(destinationIP) + "]";
 		return toReturn;
 	}
 
@@ -121,4 +145,9 @@ public class LinkStateDatabase {
         _store.put(newLSA.linkStateID, newLSA);
 	    return true;
     }
+}
+
+class WeightedGraph{
+	int [][] edges; //index stands for the two nodes of the links, the value of edge is linkWeight
+	String [] myID; // Store the simulatedIP for each vertex(router)
 }
