@@ -1,7 +1,4 @@
 package socs.network.node;
-
-import socs.network.message.LSA;
-import socs.network.message.SOSPFPacket;
 import socs.network.util.Configuration;
 
 import java.io.BufferedReader;
@@ -17,7 +14,6 @@ public class Router {
 	public LinkStateDatabase lsd;
 	RouterDescription rd = new RouterDescription();
 	public List<Link> ports = new LinkedList<Link>();
-	public int lsaSeqNum_counter = 0;
 
 	public Router(Configuration config) {
 
@@ -125,15 +121,10 @@ public class Router {
 			}
 
 			// start client thread
-			ClientThread myClientThread = new ClientThread(clientSocket, this);
+			ClientThread myClientThread = new ClientThread(clientSocket, this, current.weight);
 			myClientThread.start();
 		}
 	}
-
-    // Called when an LSA packet needs to be forwarded
-    /*private void sendLSAUpdate {
-
-    }*/
 
 	/**
 	 * attach the link to the remote router, which is identified by the given

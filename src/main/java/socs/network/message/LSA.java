@@ -28,7 +28,7 @@ public class LSA implements Serializable {
         return this;
     }
 
-    public LSA addLink(String r2_simIP, int r2_portNum, short r2_weight) {
+    public LSA addLink(String r2_simIP, int r2_portNum, int r2_weight) {
         links.add(new LinkDescription(r2_simIP, r2_portNum, r2_weight));
         return this;
     }
