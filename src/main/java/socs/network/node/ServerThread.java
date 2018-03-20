@@ -6,58 +6,65 @@ import java.io.ObjectOutputStream;
 import java.net.Socket;
 
 import socs.network.message.LSA;
-import socs.network.message.LinkDescription;
 import socs.network.message.SOSPFPacket;
 
-public class ServerThread extends Thread {
+public class ServerThread implements Runnable {
 
-	Socket mySocket;
-	Router myRouter;
+	protected Socket socket;
+	protected Router router;
 
-	ServerThread(Socket socket, Router router) {
-		mySocket = socket;
-		myRouter = router;
+	// constructor
+	public ServerThread(Socket socket, Router router) {
+		this.socket = socket;
+		this.router = router;
 	}
 
-	private void broadcastLSP() throws IOException {
-		// send new Link State Packet ----------------------------------------------------------------------------
+	// create and send new LSP ----------------------------------------------------------------------------
+	protected void sendLSP(LSA lsa) throws IOException {
 
-		// create a link state advertisement (LSA) with all Link Description (LD) for each occupied port
-		LSA tempLSA = new LSA();
-		tempLSA.lsaSeqNumber = myRouter.lsd._store.get(myRouter.rd.simulatedIPAddress).lsaSeqNumber++;
-		tempLSA.linkStateID = myRouter.rd.simulatedIPAddress;
-
-		// Add all of the router's links to the LSA
-		for (Link link : myRouter.ports) {
-			tempLSA.addLink(link.router2.simulatedIPAddress, link.router2.processPortNumber, link.weight);
-		}
-
-		// Add the link state advertisement to the link state database
-		myRouter.lsd.addLSA(tempLSA);
-
-		// For each connection, create a link state packet (LSP) and send it
-		for (Link link : myRouter.ports) {
+		// For each link create a LSP and send it
+		for (Link link : router.ports) {
 
 			SOSPFPacket LSP = new SOSPFPacket();
-			LSP.srcProcessIP = myRouter.rd.processIPAddress;
-			LSP.srcProcessPort = myRouter.rd.processPortNumber;
-			LSP.srcIP = myRouter.rd.simulatedIPAddress;
+			LSP.srcProcessIP = router.rd.processIPAddress;
+			LSP.srcProcessPort = router.rd.processPortNumber;
+			LSP.srcIP = router.rd.simulatedIPAddress;
 			LSP.dstIP = link.router2.simulatedIPAddress;
 			LSP.sospfType = 1;
-			LSP.routerID = myRouter.rd.simulatedIPAddress;
-			LSP.neighborID = myRouter.rd.simulatedIPAddress;
-			LSP.lsaArray.add(tempLSA);
+			LSP.neighborID = router.rd.simulatedIPAddress;
+			LSP.lsaArray.add(lsa);
 
 			// Send the packet to each neighbour
 			Socket clientSocket = new Socket(link.router2.processIPAddress, link.router2.processPortNumber);
-			ObjectOutputStream outputStream = new ObjectOutputStream(clientSocket.getOutputStream());
-			outputStream.writeObject(LSP);
+			ObjectOutputStream outputStreamLSP = new ObjectOutputStream(clientSocket.getOutputStream());
+			outputStreamLSP.writeObject(LSP);
 			clientSocket.close();
-			outputStream.close();
+			outputStreamLSP.close();
 
 		}
-		// sent Link State Packet ----------------------------------------------------------------------------
 
+	}
+
+	// update existing LSA ----------------------------------------------------------------------------
+	protected LSA updateLSA(Link link) {
+
+		// create a link state advertisement (LSA) with all Link Description (LD) for each occupied port
+		LSA tempLSA = null;
+
+		// add to existing LSA
+		if (router.lsd._store.get(router.rd.simulatedIPAddress) != null) {
+			tempLSA = router.lsd._store.get(router.rd.simulatedIPAddress);
+			tempLSA.lsaSeqNumber++;
+		}
+
+		// Add new link to the LSA
+		tempLSA.addLinkDescription(link.router2.simulatedIPAddress, link.router2.processPortNumber, link.weight);
+
+		// Add the updated link state advertisement to the link state database
+		router.lsd._store.put(tempLSA.linkStateID, tempLSA);
+		//System.out.println("LSA: " + tempLSA.toString());
+
+		return tempLSA;
 	}
 
 	public void run() {
@@ -68,7 +75,7 @@ public class ServerThread extends Thread {
 		try {
 
 			// get packet from InputStream
-			inputStream = new ObjectInputStream(mySocket.getInputStream());
+			inputStream = new ObjectInputStream(this.socket.getInputStream());
 			SOSPFPacket message = (SOSPFPacket) inputStream.readObject();
 
 			// -----------------------------------------------------------------------------------------------------------------------------------------
@@ -80,13 +87,12 @@ public class ServerThread extends Thread {
 				// message.neighborID identifies sender of packet
 
 				// add a neighbour
-				String senderSimIPAddress = message.neighborID;
 				boolean addNeighbour = true;
 
 				// check to see if sender is already a neighbour
-				for (Link currLink : myRouter.ports) {
+				for (Link currLink : router.ports) {
 					// sender is already a neighbour (dont want to addNeighbour)
-					if (currLink.router2.simulatedIPAddress.equals(senderSimIPAddress)) {
+					if (currLink.router2.simulatedIPAddress.equals(message.neighborID)) {
 						addNeighbour = false;
 					}
 				}
@@ -95,17 +101,17 @@ public class ServerThread extends Thread {
 				if (addNeighbour) {
 
 					// add a new Neighbour to myRouter
-					if (myRouter.ports.size() < 4) {
+					if (router.ports.size() < 4) {
 						// create new RouterDescription for Neighbour
 						RouterDescription remoteRouter = new RouterDescription();
 						remoteRouter.processIPAddress = message.srcProcessIP;
-						remoteRouter.simulatedIPAddress = senderSimIPAddress;
+						remoteRouter.simulatedIPAddress = message.neighborID;
 						remoteRouter.processPortNumber = message.srcProcessPort;
 						remoteRouter.status = RouterStatus.INIT;
 
-						myRouter.ports.add(new Link(myRouter.rd, remoteRouter, message.srcWeight));
+						router.ports.add(new Link(router.rd, remoteRouter, message.srcWeight));
 
-						System.out.println("set " + senderSimIPAddress + " state to INIT;");
+						System.out.println("set " + message.neighborID + " state to INIT;");
 
 						// cannot add new Neighbour because myRouter.ports are full
 					} else {
@@ -118,12 +124,12 @@ public class ServerThread extends Thread {
 				// create new SOSPF packet with HELLO message
 				SOSPFPacket response = new SOSPFPacket();
 				response.sospfType = 0;
-				response.neighborID = myRouter.rd.simulatedIPAddress;
-				response.srcProcessIP = myRouter.rd.processIPAddress;
-				response.srcProcessPort = myRouter.rd.processPortNumber;
+				response.neighborID = router.rd.simulatedIPAddress;
+				response.srcProcessIP = router.rd.processIPAddress;
+				response.srcProcessPort = router.rd.processPortNumber;
 
 				// send response to client
-				outputStream = new ObjectOutputStream(mySocket.getOutputStream());
+				outputStream = new ObjectOutputStream(this.socket.getOutputStream());
 				outputStream.writeObject(response);
 
 				// get response from client
@@ -132,74 +138,46 @@ public class ServerThread extends Thread {
 				// confirm it is a HELLO response
 				if (response.sospfType == 0) {
 					System.out.println("received HELLO from " + response.neighborID + ";");
+
 					// set myRouter.neighbourID.status to TWO_WAY
-					for (Link currLink : myRouter.ports) {
-						// sender is already a neighbour (dont want to addNeighbour)
-						if (currLink.router2.simulatedIPAddress.equals(senderSimIPAddress)) {
+					for (Link currLink : router.ports) {
+						// check if already TWO WAY
+						if (currLink.router2.simulatedIPAddress.equals(response.neighborID)) {
 
 							currLink.router2.status = RouterStatus.TWO_WAY;
-							System.out.println("set " + message.neighborID + " state to TWO_WAY;");
+							System.out.println("set " + response.neighborID + " state to TWO_WAY;");
 
-							broadcastLSP();
-
-							// Error: sender not a neighbour
-						} else {
-							//System.out.println("Error: Setting sender status to TWO_WAY, sender not a Neighbour");
+							sendLSP(updateLSA(currLink));
 						}
 					}
 				}
-
-				// END Server HELLO Response 
-				//-----------------------------------------------------------------------------------------------------------------------------------------
 
 				// message is Link State Packet
 				//-----------------------------------------------------------------------------------------------------------------------------------------
 			} else if (message.sospfType == 1) {
-				//If packet is a LSA Update
+				//System.out.println(" -- Received LSP -- ");
 
-				//check to see if sequenceNumber is greater than current by getting the most recent LSA from the requested source IP
-				LSA lsa = myRouter.lsd._store.get(message.srcIP);
+				for (LSA receivedLSA : message.lsaArray) {
+					LSA currentLSA = router.lsd._store.get(receivedLSA.linkStateID);
 
-				//if the incoming LSA is newer than current or new router
-				if (lsa == null || (message.lsaArray.lastElement().lsaSeqNumber > lsa.lsaSeqNumber)) {
+					//if the incoming LSA is newer than current or new router
+					if (!router.lsd._store.containsKey(receivedLSA.linkStateID) || (receivedLSA.lsaSeqNumber > currentLSA.lsaSeqNumber)) {
+						//System.out.println("NLSA : " + message.lsaArray.lastElement().toString());
+						router.lsd._store.put(receivedLSA.linkStateID, receivedLSA);
 
-					//check if the link between this router and the sender exists (direct neighbor)            
-					for (Link link : myRouter.ports) {
-						//if link exists, update link in port 
-						if (link.router2.simulatedIPAddress.equals(message.srcIP)) {
-							LinkDescription linkDescription = null;
-
-							//find the link description of current router in the LSA from message
-							for (LinkDescription ld : message.lsaArray.lastElement().links) {
-								if (ld.linkID.equals(myRouter.rd.simulatedIPAddress)) {
-									linkDescription = ld;
-									break;
-								}
-							}
-
-							if (linkDescription != null) {
-								//if the LSA is saying that there is an outdated weight, then update weight in port and broadcast
-								if (linkDescription.tosMetrics != link.weight && linkDescription.tosMetrics > -1) {
-									//update link weight
-									link.weight = linkDescription.tosMetrics;
-								}
-							}
-						}
+						sendLSP(receivedLSA);
 					}
 
-					broadcastLSP();
 				}
 			}
-
-			//System.out.println("Wrong message");
 
 		} catch (Exception e) {
 			e.printStackTrace();
 		} finally {
 			try {
 				inputStream.close();
-				outputStream.close();
-				mySocket.close();
+				//outputStream.close();
+				this.socket.close();
 			} catch (Exception e) {
 				e.printStackTrace();
 			}

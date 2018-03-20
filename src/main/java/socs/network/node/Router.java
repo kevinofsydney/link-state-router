@@ -121,7 +121,7 @@ public class Router {
 			}
 
 			// start client thread
-			ClientThread myClientThread = new ClientThread(clientSocket, this, current.weight);
+			Thread myClientThread = new Thread(new Client(clientSocket, this, current));
 			myClientThread.start();
 		}
 	}

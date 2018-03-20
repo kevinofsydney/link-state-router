@@ -35,7 +35,7 @@ public class Server extends Thread {
 				Socket clientSocket = serverSocket.accept();	
 
 				// when an incoming request comes through, create a client thread to handle the request
-				ServerThread clientServiceThread = new ServerThread(clientSocket, myRouter);
+				Thread clientServiceThread = new Thread(new ServerThread(clientSocket, myRouter));
 				clientServiceThread.start();
 
 			} catch (IOException ioe) {
