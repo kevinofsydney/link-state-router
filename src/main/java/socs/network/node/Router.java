@@ -14,6 +14,8 @@ public class Router {
 	public LinkStateDatabase lsd;
 	RouterDescription rd = new RouterDescription();
 	public List<Link> ports = new LinkedList<Link>();
+    private static boolean ROUTER_STARTED = false;
+    Thread myClientThread;
 
 	public Router(Configuration config) {
 
@@ -96,7 +98,14 @@ public class Router {
 	 */
 	private void processStart() {
 
-		Socket clientSocket = null;
+		if (ROUTER_STARTED) {
+		    System.out.println("INFO: Router has already been started.");
+		    return;
+        }
+
+	    Socket clientSocket = null;
+        ROUTER_STARTED = true;
+        System.out.println("INFO: Router started with no connections.");
 
 		// send HELLO message to all attached routers
 		for (Link current : ports) {
@@ -123,11 +132,36 @@ public class Router {
 	 * <p/>
 	 * NOTE: This command DOES trigger the link database synchronization
 
-     * Start() is similar to attach command, but it directly triggers the database synchronization without the
-     *   need to run start. This command can only be run after start ).
+     * Start() is similar to attach command, but it directly triggers the database synchronization.
+     * This command can only be run after start ).
      **/
     private void processConnect(String processIP, short processPort, String simulatedIP, short weight) {
+        if (ROUTER_STARTED) {
+            System.out.println("hello");
+            // Attempt attaching to the remote router
+            processAttach(processIP, processPort, simulatedIP, weight);
 
+            Link freshLink = null;
+
+            // Go through the ports and find the port it was attached to
+            for (Link l : ports) {
+                if (l.router2.simulatedIPAddress == simulatedIP && l.router2.processPortNumber == processPort){ // processPort check probably redundant, idk
+                    freshLink = l;
+                    break;
+                }
+            }
+
+
+            // Run the HELLO message exchange
+            Socket clientSocket = null;
+            Thread myClientThread = new Thread(new Client(clientSocket, this, freshLink));
+            myClientThread.start();
+
+            // Broadcast the LSA update
+
+        } else {
+            System.out.println("INFO: Start() must be called first before calling connect().");
+        }
 	}
 
     /**
@@ -196,7 +230,7 @@ public class Router {
 					processAttach(cmdLine[1], Short.parseShort(cmdLine[2]), cmdLine[3], Short.parseShort(cmdLine[4]));
 				} else if (command.equals("start")) {
 					processStart();
-				} else if (command.equals("connect ")) {
+				} else if (command.startsWith("connect ")) {
 					String[] cmdLine = command.split(" ");
 					processConnect(cmdLine[1], Short.parseShort(cmdLine[2]), cmdLine[3], Short.parseShort(cmdLine[4]));
 				} else if (command.equals("neighbors")) {
@@ -204,6 +238,7 @@ public class Router {
 					processNeighbors();
 				} else {
 					//invalid command
+                    System.out.println("ERROR: Invalid command.");
 					break;
 				}
 				System.out.print(">> ");
