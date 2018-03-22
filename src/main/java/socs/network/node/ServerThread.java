@@ -5,6 +5,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 
+import org.omg.PortableInterceptor.SYSTEM_EXCEPTION;
 import socs.network.message.LSA;
 import socs.network.message.SOSPFPacket;
 
@@ -168,9 +169,49 @@ public class ServerThread implements Runnable {
 
 						sendLSP(receivedLSA);
 					}
-
 				}
-			}
+
+                // message is Exit Packet
+                //-----------------------------------------------------------------------------------------------------------------------------------------
+			} else if (message.sospfType == 2) {
+//			    System.out.println("INFO: Received a deletion request from " + message.srcIP + ".");
+
+			    // Create the response packet
+                SOSPFPacket confirmDisconnect = new SOSPFPacket();
+                confirmDisconnect.sospfType = 2;
+                confirmDisconnect.srcIP = router.rd.simulatedIPAddress;
+                confirmDisconnect.srcProcessPort = router.rd.processPortNumber;
+                confirmDisconnect.dstIP = message.srcIP;
+                confirmDisconnect.srcProcessIP = router.rd.processIPAddress;
+
+                // Send the packet
+                outputStream = new ObjectOutputStream(this.socket.getOutputStream());
+                outputStream.writeObject(confirmDisconnect);
+                outputStream.close();
+
+                // Find the port that it belongs to
+                int i = 0;
+                Link deadLink = null;
+                for (Link l : router.ports)
+                {
+                    if (message.srcIP.equals(l.router2.simulatedIPAddress))
+                    {
+                        deadLink = l;
+                        break;
+                    }
+                    else
+                        i++;
+                }
+
+                if (deadLink == null) {
+                    System.out.println("ERROR: Could not find the port to delete.");
+                    throw new RuntimeException();
+                }
+
+                router.ports.remove(i);
+                router.lsd._store.remove(deadLink);
+                System.out.println("INFO: Link to " + message.srcIP + " on port " + i + " terminated.");
+            }
 
 		} catch (Exception e) {
 			e.printStackTrace();

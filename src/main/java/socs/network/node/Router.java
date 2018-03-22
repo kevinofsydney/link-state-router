@@ -4,6 +4,8 @@ import socs.network.util.Configuration;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
@@ -181,18 +183,55 @@ public class Router {
      * message to all neighbors in the topology.
      **/
     private void processDisconnect(short portNumber) {
-		Link deadLink = ports.get(portNumber);
+        if (portNumber > ports.size()) {
+            System.out.println("ERROR: Invalid port number.");
+            return;
+        }
 
-		// Remove the link from the ports and the associated entry from the LSD
-        ports.remove(portNumber);
+        // Remove the link from the ports and the associated entry from the LSD
+        Link deadLink = ports.remove(portNumber);
+
         lsd._store.remove(deadLink.router2.simulatedIPAddress);
-        System.out.println("INFO: Port " + portNumber + " (" + deadLink.router2.simulatedIPAddress + ") has been disconnected from remote router.");
 
-//		SOSPFPacket response = new SOSPFPacket();
-//        response.sospfType = 2;         // quit packet
-//        response.neighborID = rd.simulatedIPAddress;
-//        response.srcProcessIP = rd.processIPAddress;
-//        response.srcProcessPort = rd.processPortNumber;
+        // Open up a channel to the neighbor
+
+        try {
+            Socket clientSocket = new Socket(deadLink.router2.processIPAddress, deadLink.router2.processPortNumber);
+            ObjectOutputStream output = new ObjectOutputStream(clientSocket.getOutputStream());
+
+            // Create a deletion packet
+            SOSPFPacket disconnectRequest = new SOSPFPacket();
+            disconnectRequest.dstIP = deadLink.router2.simulatedIPAddress;
+            disconnectRequest.srcIP = disconnectRequest.srcProcessIP = this.rd.simulatedIPAddress;
+            disconnectRequest.srcProcessPort = this.rd.processPortNumber;
+            disconnectRequest.sospfType = 2;
+
+            // Send the deletion packet
+            output.writeObject(disconnectRequest);
+
+            System.out.println("INFO: Disconnect packet sent. Awaiting confirmation from remote router.");
+            try {
+                ObjectInputStream input = new ObjectInputStream(clientSocket.getInputStream());
+
+                SOSPFPacket inbound = (SOSPFPacket) input.readObject();
+                input.close();
+                output.close();
+                if (inbound.sospfType == 2)
+                {
+                    System.out.println("INFO: Disconnect from the remote router was successful.");
+                    clientSocket.close();
+                }
+                else
+                    System.out.println("ERROR: Disconnect from the remote router failed.");
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        System.out.println("INFO: Port " + portNumber + " (" + deadLink.router2.simulatedIPAddress + ") has been disconnected from remote router.");
 
         // Broadcast to all neighbors that you have disconnected with that remote router
     }
@@ -240,25 +279,27 @@ public class Router {
 					processDisconnect(Short.parseShort(cmdLine[1]));
 				} else if (command.startsWith("quit")) {
 					processQuit();
+                    System.out.println("INFO: Exiting program. Goodbye!");
+                    System.exit(0);
+                    break;      // Unreachable code, but it's just here to keep the compiler happy
 				} else if (command.startsWith("attach ")) {
 					String[] cmdLine = command.split(" ");
 					processAttach(cmdLine[1], Short.parseShort(cmdLine[2]), cmdLine[3], Short.parseShort(cmdLine[4]));
-				} else if (command.equals("start")) {
+				} else if (command.trim().equals("start")) {
 					processStart();
 				} else if (command.startsWith("connect ")) {
 					String[] cmdLine = command.split(" ");
 					processConnect(cmdLine[1], Short.parseShort(cmdLine[2]), cmdLine[3], Short.parseShort(cmdLine[4]));
-				} else if (command.equals("neighbors")) {
-					//output neighbors
-					processNeighbors();
+				} else if (command.trim().equals("neighbors")) {
+                    //output neighbors
+                    processNeighbors();
 				} else {
 					//invalid command
-                    System.out.println("ERROR: Invalid command. Quitting.");
-					break;
+                    System.out.println("ERROR: Invalid command. Please try again.");
 				}
-				System.out.print(">> ");
-				command = br.readLine();
-			}
+                System.out.print(">> ");
+                command = br.readLine();
+            }
 			isReader.close();
 			br.close();
 		} catch (Exception e) {

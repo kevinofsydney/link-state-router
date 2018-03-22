@@ -14,7 +14,7 @@ public class LinkStateDatabase {
 	// linkID => LSAInstance
 	HashMap<String, LSA> _store = new HashMap<String, LSA>();
 
-	private RouterDescription rd = null;
+	private RouterDescription rd;
 
 	public LinkStateDatabase(RouterDescription routerDescription) {
 		rd = routerDescription;
