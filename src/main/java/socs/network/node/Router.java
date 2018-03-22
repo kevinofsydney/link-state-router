@@ -51,20 +51,9 @@ public class Router {
 	}
 
 	/**
-	 * disconnect with the router identified by the given destination ip address
-	 * Notice: this command should trigger the synchronization of database
-	 *
-	 * @param portNumber
-	 *            the port number which the link attaches at
-	 */
-	private void processDisconnect(short portNumber) {
-
-	}
-
-	/**
 	 * attach the link to the remote router, which is identified by the given
 	 * simulated ip; to establish the connection via socket, you need to
-	 * indentify the process IP and process Port; additionally, weight is the
+	 * identify the process IP and process Port; additionally, weight is the
 	 * cost to transmitting data through the link
 	 * <p/>
 	 * NOTE: this command should not trigger link database synchronization
@@ -129,16 +118,51 @@ public class Router {
 	/**
 	 * attach the link to the remote router, which is identified by the given
 	 * simulated ip; to establish the connection via socket, you need to
-	 * indentify the process IP and process Port; additionally, weight is the
+	 * identify the process IP and process Port; additionally, weight is the
 	 * cost to transmitting data through the link
 	 * <p/>
-	 * This command does trigger the link database synchronization
-	 */
-	private void processConnect(String processIP, short processPort, String simulatedIP, short weight) {
+	 * NOTE: This command DOES trigger the link database synchronization
+
+     * Start() is similar to attach command, but it directly triggers the database synchronization without the
+     *   need to run start. This command can only be run after start ).
+     **/
+    private void processConnect(String processIP, short processPort, String simulatedIP, short weight) {
 
 	}
 
-	/**
+    /**
+     * disconnect with the router identified by the given destination ip address
+     * NOTE: This command DOES trigger the link database synchronization
+     *
+     * @param portNumber
+     *        the port number which the link attaches to
+     *
+     * remove the link between this router and the remote one which is connected at port [Port Number]
+     * (port number is between 0 - 3, i.e. four links in the router). Through this command, you are triggering
+     * the synchronization of Link State Database by sending LSAUPDATE (Link State Advertisement Update)
+     * message to all neighbors in the topology. This process will also be illustrated in the next section.
+     **/
+    private void processDisconnect(short portNumber) {
+		Link deadLink = null;
+
+		for (int i = 0; i < ports.size(); i++)
+        {
+            if (ports.get(i).router2.status == RouterStatus.TWO_WAY)
+            {
+
+            }
+        }
+    }
+
+    /**
+     * disconnect with all neighbors and quit the program
+     * NOTE: This DOES trigger link database synchronization
+     */
+    private void processQuit() {
+        System.exit(0);
+    }
+
+    /**
 	 * output the neighbors of the routers
 	 */
 	private void processNeighbors() {
@@ -150,13 +174,6 @@ public class Router {
 			}
 		}
 
-	}
-
-	/**
-	 * disconnect with all neighbors and quit the program
-	 */
-	private void processQuit() {
-        System.exit(0);
 	}
 
 	public void terminal() {
