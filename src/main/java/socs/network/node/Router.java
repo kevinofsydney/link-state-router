@@ -63,12 +63,12 @@ public class Router {
 	 * <p/>
 	 * NOTE: this command should not trigger link database synchronization
 	 */
-	private void processAttach(String processIP, short processPort, String simulatedIP, short weight) {
+	private int processAttach(String processIP, short processPort, String simulatedIP, short weight) {
 
 		// cannot attach to self
 		if (rd.simulatedIPAddress.equals(simulatedIP)) {
 			System.out.println("ERROR: Cannot establish link to myself");
-			return;
+			return 1;
 		}
 		
 		// check to see if router is already attached
@@ -93,7 +93,7 @@ public class Router {
 		else {
 			System.out.println("ERROR: Attach failed: all ports are full.");
 		}
-
+        return 0;
 	}
 
 	/**
@@ -141,7 +141,8 @@ public class Router {
     private void processConnect(String processIP, short processPort, String simulatedIP, short weight) {
         if (ROUTER_STARTED) {
             // Attempt attaching to the remote router
-            processAttach(processIP, processPort, simulatedIP, weight);
+            if (processAttach(processIP, processPort, simulatedIP, weight) == 1)
+                return;         // attach failed
 
             Link freshLink = null;
 
