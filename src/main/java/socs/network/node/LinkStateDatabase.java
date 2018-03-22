@@ -60,7 +60,7 @@ public class LinkStateDatabase {
 						Integer distanceFromSource = distance.get(currentNode);
 						Integer distanceToNeighbour = distance.get(target);
 						if (distanceFromSource + weight < distanceToNeighbour) {
-							System.out.println("Adding " + neighbour);
+							System.out.println("Adding " + neighbour + " ");
 							distance.put(target, distanceFromSource + weight);
 							predecessor.put(target, currentNode);
 						}
@@ -134,7 +134,7 @@ public class LinkStateDatabase {
 		for (LSA lsa : _store.values()) {
 			sb.append(lsa.linkStateID).append("(" + lsa.lsaSeqNumber + ")").append(":\t");
 			for (LinkDescription ld : lsa.links) {
-				sb.append(ld.linkID).append(",").append(ld.portNum).append(",").append(ld.tosMetrics).append("\t");
+				sb.append(ld.linkID).append(", ").append(ld.portNum).append(", ").append(ld.tosMetrics).append("\t");
 			}
 		}
 		return sb.toString();

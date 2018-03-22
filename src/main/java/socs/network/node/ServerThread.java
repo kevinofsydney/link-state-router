@@ -67,6 +67,7 @@ public class ServerThread implements Runnable {
 		return tempLSA;
 	}
 
+	//TODO: Implement a function to handle receiving an exit packet
 	public void run() {
 
 		ObjectInputStream inputStream = null;

@@ -1,4 +1,5 @@
 package socs.network.node;
+import socs.network.message.SOSPFPacket;
 import socs.network.util.Configuration;
 
 import java.io.BufferedReader;
@@ -64,7 +65,7 @@ public class Router {
 
 		// cannot attach to self
 		if (rd.simulatedIPAddress.equals(simulatedIP)) {
-			System.out.println("Error: Cannot establish link to myself");
+			System.out.println("ERROR: Cannot establish link to myself");
 			return;
 		}
 		
@@ -72,7 +73,7 @@ public class Router {
 		for (Link currLink : ports) {
 			// Attempting to attach to a router it is already attached to
 			if (currLink.router2.simulatedIPAddress.equals(simulatedIP) ) {
-				System.out.println("Error: Attach failed: link already exists between this router and " + processIP + ".");
+				System.out.println("ERROR: Attach failed: link already exists between this router and " + processIP + ".");
 			}
 		}
 
@@ -84,11 +85,11 @@ public class Router {
 			remoteRouter.processPortNumber = processPort;
 
 			ports.add(new Link(rd, remoteRouter, weight));
-			System.out.println("Attached (" + rd.simulatedIPAddress + ") to (" + simulatedIP +")");
+			System.out.println("INFO: Attached (" + rd.simulatedIPAddress + ") to (" + simulatedIP +")");
 		}
 		// ports list is full
 		else {
-			System.out.println("Error: Attach failed: all ports are full.");
+			System.out.println("ERROR: Attach failed: all ports are full.");
 		}
 
 	}
@@ -137,7 +138,6 @@ public class Router {
      **/
     private void processConnect(String processIP, short processPort, String simulatedIP, short weight) {
         if (ROUTER_STARTED) {
-            System.out.println("hello");
             // Attempt attaching to the remote router
             processAttach(processIP, processPort, simulatedIP, weight);
 
@@ -151,14 +151,19 @@ public class Router {
                 }
             }
 
-
-            // Run the HELLO message exchange
+            // Run the HELLO message exchange and broadcast the LSA updates
             Socket clientSocket = null;
+			String hostName = freshLink.router2.processIPAddress;
+			short port = freshLink.router2.processPortNumber;
+
+			try {
+				clientSocket = new Socket(hostName, port);
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+
             Thread myClientThread = new Thread(new Client(clientSocket, this, freshLink));
             myClientThread.start();
-
-            // Broadcast the LSA update
-
         } else {
             System.out.println("INFO: Start() must be called first before calling connect().");
         }
@@ -171,21 +176,25 @@ public class Router {
      * @param portNumber
      *        the port number which the link attaches to
      *
-     * remove the link between this router and the remote one which is connected at port [Port Number]
-     * (port number is between 0 - 3, i.e. four links in the router). Through this command, you are triggering
-     * the synchronization of Link State Database by sending LSAUPDATE (Link State Advertisement Update)
-     * message to all neighbors in the topology. This process will also be illustrated in the next section.
+     * Remove the link between this router and the remote one which is connected at port [Port Number]
+     * NOTE: This DOES trigger link state database synchronization by sending LSAUPDATE (Link State Advertisement Update)
+     * message to all neighbors in the topology.
      **/
     private void processDisconnect(short portNumber) {
-		Link deadLink = null;
+		Link deadLink = ports.get(portNumber);
 
-		for (int i = 0; i < ports.size(); i++)
-        {
-            if (ports.get(i).router2.status == RouterStatus.TWO_WAY)
-            {
+		// Remove the link from the ports and the associated entry from the LSD
+        ports.remove(portNumber);
+        lsd._store.remove(deadLink.router2.simulatedIPAddress);
+        System.out.println("INFO: Port " + portNumber + " (" + deadLink.router2.simulatedIPAddress + ") has been disconnected from remote router.");
 
-            }
-        }
+//		SOSPFPacket response = new SOSPFPacket();
+//        response.sospfType = 2;         // quit packet
+//        response.neighborID = rd.simulatedIPAddress;
+//        response.srcProcessIP = rd.processIPAddress;
+//        response.srcProcessPort = rd.processPortNumber;
+
+        // Broadcast to all neighbors that you have disconnected with that remote router
     }
 
     /**
@@ -200,6 +209,12 @@ public class Router {
 	 * output the neighbors of the routers
 	 */
 	private void processNeighbors() {
+
+	    if (ports.size() == 0)
+        {
+            System.out.println("INFO: No neighbors connected.");
+            return;
+        }
 
 		// iterate through all ports and print all IPAddress of routers whose RouterStatus is TWO_WAY
 		for (Link currLink : ports) {
@@ -238,7 +253,7 @@ public class Router {
 					processNeighbors();
 				} else {
 					//invalid command
-                    System.out.println("ERROR: Invalid command.");
+                    System.out.println("ERROR: Invalid command. Quitting.");
 					break;
 				}
 				System.out.print(">> ");
