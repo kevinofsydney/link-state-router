@@ -56,7 +56,7 @@ public class Client extends ServerThread {
 				outputStream.writeObject(message);
 
 				// send LSP
-				sendLSP(updateLSA(link));
+				sendLSP(updateLSA(link, 0));
 			}
 			
 		} catch (Exception e) {

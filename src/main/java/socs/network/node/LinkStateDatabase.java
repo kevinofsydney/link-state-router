@@ -59,6 +59,10 @@ public class LinkStateDatabase {
 					if (!closedSet.contains(target)) {
 						Integer distanceFromSource = distance.get(currentNode);
 						Integer distanceToNeighbour = distance.get(target);
+
+						System.out.println("INFO: distanceFromSource = " + distanceFromSource.intValue());
+                        System.out.println("INFO: distanceToNeighbour = " + distanceToNeighbour.intValue());
+
 						if (distanceFromSource + weight < distanceToNeighbour) {
 							System.out.println("Adding " + neighbour + " ");
 							distance.put(target, distanceFromSource + weight);

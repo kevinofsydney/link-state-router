@@ -7,6 +7,7 @@ import java.net.Socket;
 
 import org.omg.PortableInterceptor.SYSTEM_EXCEPTION;
 import socs.network.message.LSA;
+import socs.network.message.LinkDescription;
 import socs.network.message.SOSPFPacket;
 
 public class ServerThread implements Runnable {
@@ -47,23 +48,43 @@ public class ServerThread implements Runnable {
 	}
 
 	// update existing LSA ----------------------------------------------------------------------------
-	protected LSA updateLSA(Link link) {
+	protected LSA updateLSA(Link link, int ACTION_FLAG) {
 
 		// create a link state advertisement (LSA) with all Link Description (LD) for each occupied port
 		LSA tempLSA = null;
 
-		// add to existing LSA
+		// retrieve this router's own LSA
 		if (router.lsd._store.get(router.rd.simulatedIPAddress) != null) {
 			tempLSA = router.lsd._store.get(router.rd.simulatedIPAddress);
 			tempLSA.lsaSeqNumber++;
 		}
 
-		// Add new link to the LSA
-		tempLSA.addLinkDescription(link.router2.simulatedIPAddress, link.router2.processPortNumber, link.weight);
+		// If link is null, then a disconnect occurred
+        // If link is non-null, then a new connection occurred
+		if (ACTION_FLAG == 0) {
+            // Add new link to the LSA
+            tempLSA.addLinkDescription(link.router2.simulatedIPAddress, link.router2.processPortNumber, link.weight);
+            System.out.println("INFO: Added " + link.router2.simulatedIPAddress + " to my LSA.");
+		} else {
+            // Remove the LSA associated with the disconnected device
+		    LSA deadLSA = router.lsd._store.remove(link.router2.simulatedIPAddress);
+
+		    // Retrieve this router's LSA
+		    tempLSA = router.lsd._store.get(router.rd.simulatedIPAddress);
+
+            // Remove any links to the disconnected device from this router's LSA
+            for (LinkDescription linkDesc : tempLSA.links) {
+                if (linkDesc.linkID.equals(link.router2.simulatedIPAddress)) {
+                    tempLSA.links.remove(linkDesc);
+                    System.out.println("INFO: Removed " + linkDesc.linkID + " from my LSA.");
+                    break;
+                }
+            }
+        }
 
 		// Add the updated link state advertisement to the link state database
 		router.lsd._store.put(tempLSA.linkStateID, tempLSA);
-		//System.out.println("LSA: " + tempLSA.toString());
+//		System.out.println("LSA: " + tempLSA.toString());
 
 		return tempLSA;
 	}
@@ -115,7 +136,7 @@ public class ServerThread implements Runnable {
 
 						System.out.println("set " + message.neighborID + " state to INIT;");
 
-						// cannot add new Neighbour because myRouter.ports are full
+                    // cannot add new Neighbour because myRouter.ports are full
 					} else {
 						System.out.println("Error: Cannot add new Neighbour, ports are full");
 					}
@@ -149,7 +170,7 @@ public class ServerThread implements Runnable {
 							currLink.router2.status = RouterStatus.TWO_WAY;
 							System.out.println("set " + response.neighborID + " state to TWO_WAY;");
 
-							sendLSP(updateLSA(currLink));
+							sendLSP(updateLSA(currLink, 0));
 						}
 					}
 				}
@@ -157,7 +178,7 @@ public class ServerThread implements Runnable {
 				// message is Link State Packet
 				//-----------------------------------------------------------------------------------------------------------------------------------------
 			} else if (message.sospfType == 1) {
-				//System.out.println(" -- Received LSP -- ");
+//				System.out.println(" -- Received LSP -- ");
 
 				for (LSA receivedLSA : message.lsaArray) {
 					LSA currentLSA = router.lsd._store.get(receivedLSA.linkStateID);
@@ -192,15 +213,14 @@ public class ServerThread implements Runnable {
                 // Find the port that it belongs to
                 int i = 0;
                 Link deadLink = null;
-                for (Link l : router.ports)
-                {
-                    if (message.srcIP.equals(l.router2.simulatedIPAddress))
-                    {
+                for (Link l : router.ports) {
+                    if (message.srcIP.equals(l.router2.simulatedIPAddress)) {
                         deadLink = l;
                         break;
                     }
-                    else
+                    else {
                         i++;
+                    }
                 }
 
                 if (deadLink == null) {
@@ -208,9 +228,14 @@ public class ServerThread implements Runnable {
                     throw new RuntimeException();
                 }
 
-                router.ports.remove(i);
-                router.lsd._store.remove(deadLink);
-                System.out.println("INFO: Link to " + message.srcIP + " on port " + i + " terminated.");
+                Link confirmDead = router.ports.remove(i);
+                System.out.println("INFO: Removed " + confirmDead.router2.simulatedIPAddress + " from ports." );
+
+                // updateLSA actually updates the LSD and LSA. This must always run, so don't nest this
+                //      inside sendLSP.
+                LSA freshLSA = updateLSA(confirmDead, 1);
+                sendLSP(freshLSA);
+//                System.out.println(router.lsd._store.keySet());
             }
 
 		} catch (Exception e) {

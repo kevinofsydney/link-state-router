@@ -1,6 +1,8 @@
 package socs.network.node;
+import socs.network.message.LinkDescription;
 import socs.network.message.SOSPFPacket;
 import socs.network.util.Configuration;
+import socs.network.message.LSA;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -18,7 +20,6 @@ public class Router {
 	RouterDescription rd = new RouterDescription();
 	public List<Link> ports = new LinkedList<Link>();
     private static boolean ROUTER_STARTED = false;
-    Thread myClientThread;
 
 	public Router(Configuration config) {
 
@@ -63,7 +64,8 @@ public class Router {
 	 * <p/>
 	 * NOTE: this command should not trigger link database synchronization
 	 */
-	private int processAttach(String processIP, short processPort, String simulatedIP, short weight) {
+    // Should you be able to call attach if the router has already started?
+    private int processAttach(String processIP, short processPort, String simulatedIP, short weight) {
 
 		// cannot attach to self
 		if (rd.simulatedIPAddress.equals(simulatedIP)) {
@@ -189,13 +191,31 @@ public class Router {
             return;
         }
 
-        // Remove the link from the ports and the associated entry from the LSD
+        // Remove the disconnected device's link from this router's ports
         Link deadLink = ports.remove(portNumber);
+        System.out.println("INFO: IP of Link removed from ports[]: " + deadLink.router2.simulatedIPAddress);
 
-        lsd._store.remove(deadLink.router2.simulatedIPAddress);
+        // Remove the disconnected device's entry from this router's LSD
+        LSA deadRouterLSA = lsd._store.remove(deadLink.router2.simulatedIPAddress);
+        System.out.println("INFO: Identity of removed LSA: " + deadRouterLSA.linkStateID);
+
+        // Retrieve the LSA of this router
+        LSA myLSA = this.lsd._store.get(rd.simulatedIPAddress);
+
+        // Remove any links to the disconnect device from this router's LSA
+        for (LinkDescription linkDesc : myLSA.links) {
+            if (linkDesc.linkID.equals(deadLink.router2.simulatedIPAddress)) {
+                myLSA.links.remove(linkDesc);
+                myLSA.lsaSeqNumber++;
+                System.out.println("INFO: Identity of LD removed from my LSA: " + linkDesc.linkID);
+                break;
+            }
+        }
+
+        // Store this router's LSA inside it's LSD
+        lsd._store.put(rd.simulatedIPAddress, myLSA);
 
         // Open up a channel to the neighbor
-
         try {
             Socket clientSocket = new Socket(deadLink.router2.processIPAddress, deadLink.router2.processPortNumber);
             ObjectOutputStream output = new ObjectOutputStream(clientSocket.getOutputStream());
@@ -228,6 +248,29 @@ public class Router {
                 e.printStackTrace();
             }
 
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        try {
+            for (Link link : this.ports) {
+
+                SOSPFPacket LSP = new SOSPFPacket();
+                LSP.srcProcessIP = rd.processIPAddress;
+                LSP.srcProcessPort = rd.processPortNumber;
+                LSP.srcIP = rd.simulatedIPAddress;
+                LSP.dstIP = link.router2.simulatedIPAddress;
+                LSP.sospfType = 1;
+                LSP.neighborID = rd.simulatedIPAddress;
+                LSP.lsaArray.add(myLSA);        // send out the updated LSP
+
+                // Send the packet to each neighbour
+                Socket clientSocket = new Socket(link.router2.processIPAddress, link.router2.processPortNumber);
+                ObjectOutputStream outputStreamLSP = new ObjectOutputStream(clientSocket.getOutputStream());
+                outputStreamLSP.writeObject(LSP);
+                clientSocket.close();
+                outputStreamLSP.close();
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -265,6 +308,57 @@ public class Router {
 
 	}
 
+	// Helper function taken from https://github.com/Shabirmean/simulatedNetwork
+	private void printLSD() {
+        for (String lsaEntry : this.lsd._store.keySet()) {
+            LSA lsa = this.lsd._store.get(lsaEntry);
+            System.out.println("--------------------------------------------------");
+            System.out.println("       RouterIP      :   " + lsaEntry);
+            System.out.println("       OriginatorIP  :   " + lsa.linkStateID);
+            System.out.println("..................................................");
+
+            for (LinkDescription linkDes : lsa.links) {
+                System.out.println("LinkID [" + linkDes.linkID + "] - " +
+                        "Port [" + linkDes.portNum + "] - WEIGHT [" + linkDes.tosMetrics + "]");
+            }
+            System.out.println("--------------------------------------------------");
+        }
+    }
+
+    // Helper function taken from https://github.com/Shabirmean/simulatedNetwork
+    private void printPortInfo() {
+        int i = 0;
+	    for (Link linkOnPort : ports) {
+            if (linkOnPort != null) {
+                RouterDescription linkedRouter = linkOnPort.router2;
+                String processIPAddress = linkedRouter.processIPAddress;
+                short processPortNumber = linkedRouter.processPortNumber;
+                String simulatedIPAddress = linkedRouter.simulatedIPAddress;
+                RouterStatus status = linkedRouter.status;
+                String statusString = "NULL";
+
+                if (status == RouterStatus.INIT) {
+                    statusString = "INIT";
+                } else if (status == RouterStatus.TWO_WAY) {
+                    statusString = "TWO_WAY";
+                }
+                int linkWeight = linkOnPort.weight;
+
+                System.out.println("-------------------------------------------");
+                System.out.println("    ON ROUTER PORT: " + i);
+                System.out.println("    PROCESS IP: " + processIPAddress);
+                System.out.println("    PROCESS PORT: " + processPortNumber);
+                System.out.println("    SIMULATED IP: " + simulatedIPAddress);
+                System.out.println("    STATUS: " + statusString);
+                System.out.println("    LINK WEIGHT: " + linkWeight);
+                System.out.println("-------------------------------------------");
+            } else {
+                System.out.println("PORT " + i + " is free.");
+            }
+            i++;
+        }
+    }
+
 	public void terminal() {
 		try {
 			InputStreamReader isReader = new InputStreamReader(System.in);
@@ -273,8 +367,12 @@ public class Router {
 			String command = br.readLine();
 			while (true) {
 				if (command.startsWith("detect ")) {
-					String[] cmdLine = command.split(" ");
-					processDetect(cmdLine[1]);
+				    String[] cmdLine = command.split(" ");
+				    if (cmdLine.length < 2) {
+				        System.out.println("ERROR: Please enter a router to detect.");
+                    } else {
+                        processDetect(cmdLine[1]);
+                    }
 				} else if (command.startsWith("disconnect ")) {
 					String[] cmdLine = command.split(" ");
 					processDisconnect(Short.parseShort(cmdLine[1]));
@@ -292,8 +390,14 @@ public class Router {
 					String[] cmdLine = command.split(" ");
 					processConnect(cmdLine[1], Short.parseShort(cmdLine[2]), cmdLine[3], Short.parseShort(cmdLine[4]));
 				} else if (command.trim().equals("neighbors")) {
-                    //output neighbors
+                    // output neighbors
                     processNeighbors();
+                } else if (command.trim().equals("lsd")) {
+                    // print the LSD
+                    printLSD();
+                } else if (command.trim().equals("ports")) {
+                    // print the status of all ports
+				    printPortInfo();
 				} else {
 					//invalid command
                     System.out.println("ERROR: Invalid command. Please try again.");
