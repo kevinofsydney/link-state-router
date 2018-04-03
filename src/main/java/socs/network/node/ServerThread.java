@@ -73,11 +73,12 @@ public class ServerThread implements Runnable {
 		    tempLSA = router.lsd._store.get(router.rd.simulatedIPAddress);
 
             // Remove any links to the disconnected device from this router's LSA
-            for (LinkDescription linkDesc : tempLSA.links) {
-                if (linkDesc.linkID.equals(link.router2.simulatedIPAddress)) {
-                    tempLSA.links.remove(linkDesc);
-                    System.out.println("INFO: Removed " + linkDesc.linkID + " from my LSA.");
-                    break;
+            for (int i = 0; i < tempLSA.links.size(); i++)  {
+                if (tempLSA.links.get(i).linkID.equals(link.router2.simulatedIPAddress)) {
+                    tempLSA.links.remove(i);
+                    tempLSA.lsaSeqNumber++;
+                    i--;
+                    System.out.println("INFO: Removed " + link.router2.simulatedIPAddress + " from my LSA.");
                 }
             }
         }

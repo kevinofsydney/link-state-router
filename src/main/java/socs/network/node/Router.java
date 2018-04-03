@@ -103,14 +103,17 @@ public class Router {
 	 */
 	private void processStart() {
 
-		if (ROUTER_STARTED) {
-		    System.out.println("INFO: Router has already been started.");
-		    return;
-        }
+//		if (ROUTER_STARTED) {
+//		    System.out.println("INFO: Router has already been started.");
+//		    return;
+//        }
 
 	    Socket clientSocket = null;
         ROUTER_STARTED = true;
-        System.out.println("INFO: Router started with no connections.");
+
+        if (ports.size() == 0) {
+            System.out.println("INFO: Router started with no connections.");
+        }
 
 		// send HELLO message to all attached routers
 		for (Link current : ports) {
@@ -141,37 +144,39 @@ public class Router {
      * This command can only be run after start ).
      **/
     private void processConnect(String processIP, short processPort, String simulatedIP, short weight) {
-        if (ROUTER_STARTED) {
-            // Attempt attaching to the remote router
-            if (processAttach(processIP, processPort, simulatedIP, weight) == 1)
-                return;         // attach failed
-
-            Link freshLink = null;
-
-            // Go through the ports and find the port it was attached to
-            for (Link l : ports) {
-                if (l.router2.simulatedIPAddress == simulatedIP && l.router2.processPortNumber == processPort){ // processPort check probably redundant, idk
-                    freshLink = l;
-                    break;
-                }
-            }
-
-            // Run the HELLO message exchange and broadcast the LSA updates
-            Socket clientSocket = null;
-			String hostName = freshLink.router2.processIPAddress;
-			short port = freshLink.router2.processPortNumber;
-
-			try {
-				clientSocket = new Socket(hostName, port);
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
-
-            Thread myClientThread = new Thread(new Client(clientSocket, this, freshLink));
-            myClientThread.start();
-        } else {
-            System.out.println("INFO: Start() must be called first before calling connect().");
+        // Attempt attaching to the remote router
+        if (processAttach(processIP, processPort, simulatedIP, weight) == 1)    {
+            System.out.println("INFO: Connection failed.");
+            return;         // attach failed
         }
+
+        processStart();
+
+//            Link freshLink = null;
+//            // Go through the ports and find the port it was attached to
+//            for (Link l : ports) {
+//                if (l.router2.simulatedIPAddress == simulatedIP && l.router2.processPortNumber == processPort){ // processPort check probably redundant, idk
+//                    freshLink = l;
+//                    break;
+//                }
+//            }
+//
+//            // Run the HELLO message exchange and broadcast the LSA updates
+//            Socket clientSocket = null;
+//			String hostName = freshLink.router2.processIPAddress;
+//			short port = freshLink.router2.processPortNumber;
+//
+//			try {
+//				clientSocket = new Socket(hostName, port);
+//			} catch (Exception e) {
+//				e.printStackTrace();
+//			}
+//
+//            Thread myClientThread = new Thread(new Client(clientSocket, this, freshLink));
+//            myClientThread.start();
+//        } else {
+//            System.out.println("INFO: Start() must be called first before calling connect().");
+//        }
 	}
 
     /**
@@ -203,12 +208,15 @@ public class Router {
         LSA myLSA = this.lsd._store.get(rd.simulatedIPAddress);
 
         // Remove any links to the disconnect device from this router's LSA
-        for (LinkDescription linkDesc : myLSA.links) {
-            if (linkDesc.linkID.equals(deadLink.router2.simulatedIPAddress)) {
-                myLSA.links.remove(linkDesc);
+//        System.out.println("INFO: There are " + myLSA.links.size() + " links in this LSA.");
+
+        for (int i = 0; i < myLSA.links.size(); i++) {
+            System.out.println("INFO: Current link: " + myLSA.links.get(i).linkID);
+            if (myLSA.links.get(i).linkID.equals(deadLink.router2.simulatedIPAddress)) {
+                myLSA.links.remove(i);
                 myLSA.lsaSeqNumber++;
-                System.out.println("INFO: Identity of LD removed from my LSA: " + linkDesc.linkID);
-                break;
+                i--;
+                System.out.println("INFO: Identity of LD removed from my LSA: " + deadLink.router2.simulatedIPAddress);
             }
         }
 
